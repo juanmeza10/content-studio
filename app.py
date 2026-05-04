@@ -12,6 +12,11 @@ from content_studio import (
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+_TIMESTAMP_RE = re.compile(r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\]")
+
+def _clean(text: str) -> str:
+    return _TIMESTAMP_RE.sub("", text).strip()
+
 def parse_ideas(text: str) -> list[dict]:
     sections = re.split(r"─{10,}", text)
     ideas = []
@@ -24,9 +29,9 @@ def parse_ideas(text: str) -> list[dict]:
         why_match = re.search(r"Why this works:[ \t]*\n?([\s\S]+)", section)
         if angle_match and copy_match:
             ideas.append({
-                "angle": angle_match.group(1).strip(),
-                "copy": copy_match.group(1).strip(),
-                "why": why_match.group(1).strip() if why_match else "",
+                "angle": _clean(angle_match.group(1)),
+                "copy": _clean(copy_match.group(1)),
+                "why": _clean(why_match.group(1)) if why_match else "",
             })
     return ideas
 
@@ -121,7 +126,7 @@ st.divider()
 
 if st.button("✦ Generate Ad Copy", type="primary", use_container_width=True):
     with st.spinner("Writing your ad copies..."):
-        raw_text = generate_ad_copies(brand)
+        raw_text = generate_ad_copies(brand, echo=False)
         output_path = get_output_path(brand["brand_name"])
         save_output(raw_text, brand, output_path)
         st.session_state.ideas = parse_ideas(raw_text)

@@ -122,7 +122,7 @@ def select_or_create_brand() -> Optional[dict]:
 
 # ── Ad copy generation ─────────────────────────────────────────────────────────
 
-def generate_ad_copies(info: dict) -> str:
+def generate_ad_copies(info: dict, echo: bool = True) -> str:
     client = anthropic.Anthropic()
 
     user_message = (
@@ -147,7 +147,8 @@ def generate_ad_copies(info: dict) -> str:
         messages=[{"role": "user", "content": user_message}],
     ) as stream:
         for text in stream.text_stream:
-            print(text, end="", flush=True)
+            if echo:
+                print(text, end="", flush=True)
             chunks.append(text)
 
     return "".join(chunks)
