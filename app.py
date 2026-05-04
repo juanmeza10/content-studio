@@ -21,7 +21,7 @@ def parse_ideas(text: str) -> list[dict]:
             continue
         angle_match = re.search(r"Angle:\s*(.+)", section)
         copy_match = re.search(r'"(.+?)"', section, re.DOTALL)
-        why_match = re.search(r"Why this works:\s*\n([\s\S]+)", section)
+        why_match = re.search(r"Why this works:[ \t]*\n?([\s\S]+)", section)
         if angle_match and copy_match:
             ideas.append({
                 "angle": angle_match.group(1).strip(),
@@ -142,4 +142,4 @@ if (
             st.markdown(f"**Idea {i} — {idea['angle']}**")
             st.markdown(f"> {idea['copy']}")
             with st.expander("Why this works"):
-                st.write(idea["why"])
+                st.markdown(idea["why"])
