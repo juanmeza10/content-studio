@@ -1,6 +1,10 @@
 import os
+from datetime import datetime
 from typing import Optional
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 SYSTEM_PROMPT = """You are an expert advertising copywriter specializing in social media ads.
@@ -24,6 +28,24 @@ IDEA [N]  |  Angle: [ANGLE NAME]
 
 Make each angle genuinely distinct. Draw on the brand's unique value proposition, tone,
 target audience, and pain point to make every copy feel tailor-made — not generic."""
+
+
+def get_output_path(brand_name: str) -> str:
+    folder = os.path.expanduser(f"~/Desktop/{brand_name.lower().replace(' ', '-')}-copy")
+    os.makedirs(folder, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%I-%M%p").lower()
+    return os.path.join(folder, f"copy_{timestamp}.txt")
+
+
+def save_output(text: str, info: dict, language: str, path: str) -> None:
+    header = (
+        f"Brand: {info['brand_name']}\n"
+        f"Language: {language}\n"
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\n"
+        f"{'─' * 60}\n\n"
+    )
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(header + text)
 
 
 def print_divider():
@@ -67,7 +89,7 @@ def collect_brand_info() -> Optional[dict]:
     return info
 
 
-def generate_ad_copies(info: dict, language: str) -> None:
+def generate_ad_copies(info: dict, language: str) -> str:
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from environment
 
     user_message = (
@@ -79,6 +101,7 @@ def generate_ad_copies(info: dict, language: str) -> None:
         f"Main pain point they solve: {info['pain_point']}"
     )
 
+    chunks = []
     with client.messages.stream(
         model="claude-sonnet-4-6",
         max_tokens=2048,
@@ -91,6 +114,9 @@ def generate_ad_copies(info: dict, language: str) -> None:
     ) as stream:
         for text in stream.text_stream:
             print(text, end="", flush=True)
+            chunks.append(text)
+
+    return "".join(chunks)
 
 
 def main():
@@ -110,17 +136,23 @@ def main():
     print_divider()
     print("Generating your custom ad copies...\n")
 
+    output_path = get_output_path(info["brand_name"])
     try:
-        generate_ad_copies(info, language)
+        output_text = generate_ad_copies(info, language)
+        save_output(output_text, info, language, output_path)
     except anthropic.AuthenticationError:
         print("\nError: Invalid or missing ANTHROPIC_API_KEY.")
+        return
     except anthropic.APIConnectionError:
         print("\nError: Could not connect to the Anthropic API.")
+        return
     except anthropic.APIStatusError as e:
         print(f"\nAPI error ({e.status_code}): {e.message}")
+        return
 
     print_divider()
-    print("Run the script again for a fresh set of ideas.\n")
+    print(f"  Saved to: {output_path}")
+    print("\nRun the script again for a fresh set of ideas.\n")
 
 
 if __name__ == "__main__":
