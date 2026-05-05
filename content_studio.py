@@ -9,7 +9,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-SYSTEM_PROMPT = """You are an expert advertising copywriter specializing in social media ads.
+STRATEGIST_PROMPT = """You are a senior brand strategist. Analyze the brand and write a tight creative brief \
+that a copywriter will use to generate ad copy.
+
+Structure your brief with exactly these sections:
+
+Brand Essence: One sentence capturing what this brand truly stands for.
+
+Audience Insight: What the target customer deeply wants, fears, or aspires to — go beyond demographics.
+
+Key Differentiator: The one thing that makes this brand impossible to ignore or replace.
+
+Tone Direction: 3–5 adjectives followed by a single sentence describing the brand's voice in action.
+
+Campaign Angles: Three distinct creative directions worth exploring, each with a one-line rationale.
+
+Be concrete and specific to this brand. Every line must give the copywriter something real to work with."""
+
+COPYWRITER_PROMPT = """You are an expert advertising copywriter specializing in social media ads.
 Your job is to generate 5 distinct ad copies for a brand, each using a different sell angle.
 
 For each ad copy, provide:
@@ -122,36 +139,70 @@ def select_or_create_brand() -> Optional[dict]:
 
 # ── Ad copy generation ─────────────────────────────────────────────────────────
 
-def generate_ad_copies(info: dict, echo: bool = True) -> str:
+def _stream_claude(system: str, user: str, max_tokens: int, echo: bool) -> str:
     client = anthropic.Anthropic()
-
-    user_message = (
-        f"Generate 5 ad copies for this brand. "
-        f"Write everything — the ad copies, angle names, and explanations — in {info['language']}.\n\n"
-        f"Brand name: {info['brand_name']}\n"
-        f"What they sell / what makes them unique: {info['what_sells']}\n"
-        f"Brand personality/tone: {info['tone']}\n"
-        f"Target audience: {info['audience']}\n"
-        f"Main pain point they solve: {info['pain_point']}"
-    )
-
     chunks = []
     with client.messages.stream(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=[{
-            "type": "text",
-            "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        messages=[{"role": "user", "content": user_message}],
+        max_tokens=max_tokens,
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": user}],
     ) as stream:
         for text in stream.text_stream:
             if echo:
                 print(text, end="", flush=True)
             chunks.append(text)
-
     return "".join(chunks)
+
+
+def generate_ad_copies(info: dict, echo: bool = True) -> str:
+    _div = "═" * 60
+
+    # ── Step 1: Brand strategist writes the creative brief ──────────────────
+    if echo:
+        print(f"{_div}\nSTEP 1 — BRAND STRATEGIST\n{_div}\n")
+
+    brief = _stream_claude(
+        system=STRATEGIST_PROMPT,
+        user=(
+            f"Write a creative brief for this brand. "
+            f"Write the brief in {info['language']}.\n\n"
+            f"Brand: {info['brand_name']}\n"
+            f"What they sell: {info['what_sells']}\n"
+            f"Tone: {info['tone']}\n"
+            f"Audience: {info['audience']}\n"
+            f"Pain point: {info['pain_point']}"
+        ),
+        max_tokens=768,
+        echo=echo,
+    )
+
+    # ── Step 2: Copywriter uses the brief to write ad copies ────────────────
+    if echo:
+        print(f"\n\n{_div}\nSTEP 2 — COPYWRITER\n{_div}\n")
+
+    copy = _stream_claude(
+        system=COPYWRITER_PROMPT,
+        user=(
+            f"Generate 5 ad copies for this brand. "
+            f"Write everything — the ad copies, angle names, and explanations — in {info['language']}.\n\n"
+            f"Brand name: {info['brand_name']}\n"
+            f"What they sell / what makes them unique: {info['what_sells']}\n"
+            f"Brand personality/tone: {info['tone']}\n"
+            f"Target audience: {info['audience']}\n"
+            f"Main pain point they solve: {info['pain_point']}\n\n"
+            f"Creative Brief:\n{brief}"
+        ),
+        max_tokens=2048,
+        echo=echo,
+    )
+
+    return (
+        f"{_div}\nCREATIVE BRIEF\n{_div}\n\n"
+        f"{brief}\n\n"
+        f"{_div}\nAD COPY IDEAS\n{_div}\n\n"
+        f"{copy}"
+    )
 
 
 # ── Output saving ──────────────────────────────────────────────────────────────

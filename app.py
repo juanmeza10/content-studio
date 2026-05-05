@@ -18,6 +18,8 @@ def _clean(text: str) -> str:
     return _TIMESTAMP_RE.sub("", text).strip()
 
 def parse_ideas(text: str) -> list[dict]:
+    if "AD COPY IDEAS" in text:
+        text = text.split("AD COPY IDEAS", 1)[-1]
     sections = re.split(r"─{10,}", text)
     ideas = []
     for section in sections:
