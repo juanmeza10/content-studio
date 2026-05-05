@@ -28,7 +28,7 @@ def parse_ideas(text: str) -> list[dict]:
             continue
         angle_match = re.search(r"Angle:\s*(.+)", section)
         copy_match = re.search(r'"(.+?)"', section, re.DOTALL)
-        why_match = re.search(r"Why this works:[ \t]*\n?([\s\S]+)", section)
+        why_match = re.search(r"Why this works:?\*{0,2}[ \t]*\n?([\s\S]+)", section, re.IGNORECASE)
         if angle_match and copy_match:
             ideas.append({
                 "angle": _clean(angle_match.group(1)),
@@ -134,6 +134,11 @@ if st.button("✦ Generate Ad Copy", type="primary", use_container_width=True):
         st.session_state.ideas = parse_ideas(raw_text)
         st.session_state.output_path = output_path
         st.session_state.generated_for = brand["brand_name"]
+        if "CREATIVE BRIEF" in raw_text and "AD COPY IDEAS" in raw_text:
+            brief_raw = raw_text.split("CREATIVE BRIEF", 1)[1].split("AD COPY IDEAS", 1)[0]
+            st.session_state.brief = re.sub(r"^[═\s]+|[═\s]+$", "", brief_raw)
+        else:
+            st.session_state.brief = ""
         with open(output_path, "r", encoding="utf-8") as f:
             st.session_state.download_content = f.read()
 
@@ -153,6 +158,10 @@ if (
         file_name=dl_filename,
         mime="text/plain",
     )
+
+    if st.session_state.get("brief"):
+        with st.expander("Creative Brief"):
+            st.markdown(st.session_state.brief)
 
     st.subheader("Ad Copy Ideas")
 
