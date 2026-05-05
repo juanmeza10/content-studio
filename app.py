@@ -132,6 +132,8 @@ if st.button("✦ Generate Ad Copy", type="primary", use_container_width=True):
         st.session_state.ideas = parse_ideas(raw_text)
         st.session_state.output_path = output_path
         st.session_state.generated_for = brand["brand_name"]
+        with open(output_path, "r", encoding="utf-8") as f:
+            st.session_state.download_content = f.read()
 
 # ── Results ────────────────────────────────────────────────────────────────────
 
@@ -140,6 +142,16 @@ if (
     and st.session_state.get("generated_for") == brand["brand_name"]
 ):
     st.success(f"Saved to `{st.session_state.output_path}`")
+
+    ts_part = os.path.basename(st.session_state.output_path).removeprefix("copy_")
+    dl_filename = f"{brand['brand_name'].replace(' ', '_')}_{ts_part}"
+    st.download_button(
+        label="⬇ Download as .txt",
+        data=st.session_state.download_content,
+        file_name=dl_filename,
+        mime="text/plain",
+    )
+
     st.subheader("Ad Copy Ideas")
 
     for i, idea in enumerate(st.session_state.ideas, 1):
